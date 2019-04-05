@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+
+<head>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #222;
+    }
+
+    canvas {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="can"></canvas>
+
+  <script>
+    const canvas = document.getElementById('can');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800;
+    canvas.height = 600;
+
+    const detectLineCollision = (line1, line2) => {
+      const x1 = line1.x;
+      const y1 = line1.y;
+      const x2 = line1.z;
+      const y2 = line1.w;
+
+      const x3 = line2.x;
+      const y3 = line2.y;
+      const x4 = line2.z;
+      const y4 = line2.w;
+
+      let dx1, dy1, dx2, dy2;
+
+      // Relative to line1
+      dx1 = x2 - x1;
+      dy1 = y2 - y1;
+      dx2 = x3 - x1;
+      dy2 = y3 - y1;
+
+      const d1 = dx1 * dy2 - dx2 * dy1;
+
+      dx2 = x4 - x1;
+      dy2 = y4 - y1;
+
+      const d2 = dx1 * dy2 - dx2 * dy1;
+
+      // Relative to line2
+      dx1 = x4 - x3;
+      dy1 = y4 - y3;
+      dx2 = x1 - x3;
+      dy2 = y1 - y3;
+
+      const d3 = dx1 * dy2 - dx2 * dy1;
+
+      dx2 = x2 - x3;
+      dy2 = y2 - y3;
+
+      const d4 = dx1 * dy2 - dx2 * dy1;
+
+      if (
+        ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+      ) {
+        const a = ((x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4));
+        const x = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / a;
+        const y = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / a;
+
+        return {
+          x,
+          y
+        };
+      }
+      return false;
+    }
+
+    const lines = [{
+      x: 100,
+      y: 100,
+      z: 200,
+      w: 200
+    }, {
+      x: 100,
+      y: 200,
+      z: 300,
+      w: 100
+    }];
+
+    function render() {
+      requestAnimationFrame(render);
+
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'blue'
+      lines.forEach((line, i) => {
+        ctx.beginPath();
+        ctx.moveTo(line.x, line.y);
+        ctx.lineTo(line.z, line.w);
+        ctx.stroke();
+
+        ctx.fillRect(line.x - 5, line.y - 5, 10, 10)
+        ctx.fillRect(line.z - 5, line.w - 5, 10, 10)
+
+        if (i === selectedPoint) {
+          if (isEnd) {
+            line.z = mouseX;
+            line.w = mouseY;
+          } else {
+            line.x = mouseX;
+            line.y = mouseY;
+          }
+        }
+      });
+
+      if (lines.length > 1) {
+        const col = detectLineCollision(lines[0], lines[1]);
+        if (col !== false) {
+          const x = col.x,
+            y = col.y;
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, 2 * Math.PI, false);
+          ctx.fillStyle = 'black'
+          ctx.fill();
+
+          ctx.textBaseline = 'middle'
+          ctx.textAlign = 'left'
+          ctx.font = '10px sans-serif'
+          ctx.fillText('X: ' + Math.round(col.x) + ', Y: ' + Math.round(col.y), col.x + 30, col.y)
+        }
+      }
+    }
+
+    window.onload = render;
+
+    function collideWithPoint(x1, y1, x2, y2, dist) {
+      const d = dist || 10;
+
+      return Math.abs(x1 - x2) < d && Math.abs(y1 - y2) < d;
+    }
+
+    let selectedPoint = -1;
+    let isEnd = false;
+
+    function getTrueMousePosition(e) {
+      const rect = canvas.getBoundingClientRect()
+      return {
+        x: e.clientX - rect.x,
+        y: e.clientY - rect.y
+      }
+    }
+
+    window.addEventListener('mousedown', e => {
+      const pos = getTrueMousePosition(e)
+      lines.forEach((line, index) => {
+        if (collideWithPoint(pos.x, pos.y, line.x, line.y)) {
+          selectedPoint = index;
+          isEnd = false;
+        } else if (collideWithPoint(pos.x, pos.y, line.z, line.w)) {
+          selectedPoint = index;
+          isEnd = true;
+        }
+      });
+    });
+
+    window.addEventListener('mousemove', e => {
+      const pos = getTrueMousePosition(e)
+      mouseX = pos.x;
+      mouseY = pos.y;
+    })
+
+    window.addEventListener('mouseup', () => {
+      selectedPoint = -1;
+    })
+  </script>
+
+</body>
+
+</html>
